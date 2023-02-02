@@ -9,7 +9,7 @@ import datetime
 from tqdm import tqdm
 import googleapiclient.errors
 import urllib.request
-from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 
 
 def get_api_key():
@@ -34,6 +34,7 @@ def video_category_list():
 
     with open('./video_category.json', 'w', encoding='utf-8') as file:
         json.dump(dic, file)
+    return dic
 
 
 def hot_video_list():
@@ -51,6 +52,14 @@ def hot_video_list():
         os.mkdir('most_popular_videos')
         os.mkdir(file_path + '/image')
         os.mkdir(file_path + '/data')
+
+    if 'image_list.json' not in os.listdir(file_path + '/image/'):
+        with open(file_path + '/image_list.json', 'w', encoding='utf-8') as file:
+            temp = {}
+            json.dump(temp, file)
+            time.sleep(10)
+    with open(file_path + '/image_list.json', 'r', encoding='utf-8') as file:
+        image_list = json.load(file)
 
     now = datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%d-%H-%M")  # 프로그램 에러 다 해결하면 -%M 제거
     print(f'{now}에 프로그램 실행')
@@ -87,13 +96,13 @@ def hot_video_list():
 
             imageFilePath = file_path + f'/image/{item["id"]}.jpg'
             video['imageFilePath'] = imageFilePath
-            # print(item['snippet']['thumbnails'])
+
             for image in ['maxres', 'standard', 'high', 'medium', 'default']:
                 try:
-                    video['imageUrl'] = item['snippet']['thumbnails'][image]['url']
-                    if os.listdir(file_path + '/image/'):  # 이미지 파일의 이름만 저장해놓는 json이 필요할 듯?
-                    # dictionary가 조회는 더 빠른 거로 알고있음
-                    urllib.request.urlretrieve(video['imageUrl'], imageFilePath)
+                    if item["id"] not in image_list:
+                        video['imageUrl'] = item['snippet']['thumbnails'][image]['url']
+                        image_list[item['id']] = 1
+                        urllib.request.urlretrieve(video['imageUrl'], imageFilePath)
                     break
                 except KeyError:
                     continue
@@ -109,6 +118,11 @@ def hot_video_list():
     with open(file_path + f'/data/{now}.json', 'w', encoding='utf-8') as file:
         json.dump(data, file)
 
+    with open(file_path + f'/image_list.json', 'w', encoding='utf-8') as file:
+        json.dump(image_list, file)
+
+    return data
+
 
 def video_comment(video_id, filepath='./comments'):
     if 'comments' not in os.listdir():
@@ -117,7 +131,6 @@ def video_comment(video_id, filepath='./comments'):
     comments = []
     api_obj = build('youtube', 'v3', developerKey=get_api_key())
     response = api_obj.commentThreads().list(part='snippet,replies', videoId=video_id, maxResults=100).execute()
-    now = datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%d-%H-%M")
 
     while response:
         for item in response['items']:
@@ -138,13 +151,10 @@ def video_comment(video_id, filepath='./comments'):
             break
 
     df = pd.DataFrame(comments)
-    if f'{video_id}' not in os.listdir('comments'):
-        os.mkdir(f'./comments/{video_id}')
-    df.to_csv(filepath + f'/{video_id}/{now}.csv', header=['comment', 'author', 'date', 'num_likes'], index=False)
+    df.to_csv(filepath + f'/{video_id}.csv', header=['comment', 'author', 'date', 'num_likes'], index=False)
 
 
 if __name__ == "__main__":
-    # sched = BlockingScheduler()
-    # sched.add_job(hot_video_list, 'cron', hour=0)
-    # sched.start()
-    hot_video_list()
+    sched = BackgroundScheduler()
+    sched.add_job(hot_video_list, 'cron', hour=0)
+    sched.start()
