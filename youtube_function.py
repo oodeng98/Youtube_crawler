@@ -9,6 +9,7 @@ import datetime
 from tqdm import tqdm
 import googleapiclient.errors
 import urllib.request
+from apscheduler.schedulers.blocking import BlockingScheduler
 
 
 def get_api_key():
@@ -45,19 +46,16 @@ def hot_video_list():
     with open('./video_category.json', 'r') as file:
         category_dic = json.load(file)
 
+    file_path = f'./most_popular_videos'
     if 'most_popular_videos' not in os.listdir():
         os.mkdir('most_popular_videos')
-
-    now = datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%d-%H-%M")
-    file_path = f'./most_popular_videos/{now}'
-    data = []
-
-    if now not in os.listdir('./most_popular_videos'):
-        os.mkdir(file_path)
         os.mkdir(file_path + '/image')
+        os.mkdir(file_path + '/data')
 
-    ret = []
+    now = datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%d-%H-%M")  # 프로그램 에러 다 해결하면 -%M 제거
+    print(f'{now}에 프로그램 실행')
 
+    data = []
     for categoryId in tqdm(category_dic):
         try:
             response = youtube.videos().list(part='snippet, statistics, topicDetails', chart='mostPopular',
@@ -72,48 +70,54 @@ def hot_video_list():
             channel = {}
 
             popular_video['confirmation_time'] = now
-            popular_video['viewCount'] = item['statistics']['viewCount']
-            popular_video['likeCount'] = item['statistics']['likeCount']
-            popular_video['commentCount'] = item['statistics']['commentCount']
+            for statistic in ['viewCount', 'likeCount', 'commentCount']:
+                try:
+                    popular_video[statistic] = item['statistics'][statistic]
+                except KeyError:
+                    popular_video[statistic] = ''
             popular_video['videoId'] = item['id']
 
             video['videoId'] = item['id']
-            video['description'] = item['snippet']['description']
-            video['title'] = item['snippet']['title']
-            video['publishedAt'] = item['snippet']['publishedAt']
-            try:
-                video['tags'] = item['snippet']['tags']
-            except KeyError:
-                video['tags'] = ''
+            for snip in ['description', 'title', 'publishedAt', 'tags', 'channelId']:
+                try:
+                    video[snip] = item['snippet'][snip]
+                except KeyError:
+                    video[snip] = ''
+            # print(video['title'])
+
             imageFilePath = file_path + f'/image/{item["id"]}.jpg'
             video['imageFilePath'] = imageFilePath
-            video['imageUrl'] = item['snippet']['thumbnails']['default']['url']
+            # print(item['snippet']['thumbnails'])
+            for image in ['maxres', 'standard', 'high', 'medium', 'default']:
+                try:
+                    video['imageUrl'] = item['snippet']['thumbnails'][image]['url']
+                    if os.listdir(file_path + '/image/'):  # 이미지 파일의 이름만 저장해놓는 json이 필요할 듯?
+                    # dictionary가 조회는 더 빠른 거로 알고있음
+                    urllib.request.urlretrieve(video['imageUrl'], imageFilePath)
+                    break
+                except KeyError:
+                    continue
             try:
-                video['topicCategories'] = item['topicDetails']['topicCategories']  # 이거 없는 경우는?
+                video['topicCategories'] = item['topicDetails']['topicCategories']
             except KeyError:
-                print(item)
-            video['channelId'] = item['snippet']['channelId']
-
-            urllib.request.urlretrieve(video['imageUrl'], imageFilePath)
+                video['topicCategories'] = []
 
             channel['channelTitle'] = item['snippet']['channelTitle']
             channel['channelId'] = item['snippet']['channelId']
 
             data.append({'popular_video': popular_video, 'video': video, 'channel': channel})
-            ret.append(item['id'])
-            print(video['title'], item['topicDetails']['topicCategories'])
-            return
-
-    with open(file_path + './data.json', 'w', encoding='utf-8') as file:  # 파일 이름 설정해
+    with open(file_path + f'/data/{now}.json', 'w', encoding='utf-8') as file:
         json.dump(data, file)
 
-    return ret
 
-
-def video_comment(video_id, filepath):
+def video_comment(video_id, filepath='./comments'):
+    if 'comments' not in os.listdir():
+        os.mkdir('./comments')
+        time.sleep(10)
     comments = []
     api_obj = build('youtube', 'v3', developerKey=get_api_key())
     response = api_obj.commentThreads().list(part='snippet,replies', videoId=video_id, maxResults=100).execute()
+    now = datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%d-%H-%M")
 
     while response:
         for item in response['items']:
@@ -134,8 +138,13 @@ def video_comment(video_id, filepath):
             break
 
     df = pd.DataFrame(comments)
-    df.to_csv(filepath + f'/{video_id}.csv', header=['comment', 'author', 'date', 'num_likes'], index=False)
+    if f'{video_id}' not in os.listdir('comments'):
+        os.mkdir(f'./comments/{video_id}')
+    df.to_csv(filepath + f'/{video_id}/{now}.csv', header=['comment', 'author', 'date', 'num_likes'], index=False)
 
 
 if __name__ == "__main__":
+    # sched = BlockingScheduler()
+    # sched.add_job(hot_video_list, 'cron', hour=0)
+    # sched.start()
     hot_video_list()
