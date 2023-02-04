@@ -9,7 +9,7 @@ import datetime
 from tqdm import tqdm
 import googleapiclient.errors
 import urllib.request
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.blocking import BlockingScheduler
 
 
 def get_api_key():
@@ -38,6 +38,8 @@ def video_category_list():
 
 
 def hot_video_list():
+    now = datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%d-%H")
+    print(f'{now} program start')
     youtube = build('youtube', 'v3', developerKey=get_api_key())
 
     if 'video_category.json' not in os.listdir():
@@ -47,7 +49,7 @@ def hot_video_list():
     with open('./video_category.json', 'r') as file:
         category_dic = json.load(file)
 
-    file_path = f'./most_popular_videos'
+    file_path = './most_popular_videos'
     if 'most_popular_videos' not in os.listdir():
         os.mkdir('most_popular_videos')
         os.mkdir(file_path + '/image')
@@ -60,9 +62,6 @@ def hot_video_list():
             time.sleep(10)
     with open(file_path + '/image_list.json', 'r', encoding='utf-8') as file:
         image_list = json.load(file)
-
-    now = datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%d-%H-%M")  # 프로그램 에러 다 해결하면 -%M 제거
-    print(f'{now}에 프로그램 실행')
 
     data = []
     for categoryId in tqdm(category_dic):
@@ -155,6 +154,10 @@ def video_comment(video_id, filepath='./comments'):
 
 
 if __name__ == "__main__":
-    sched = BackgroundScheduler()
-    sched.add_job(hot_video_list, 'cron', hour=0)
+    print('파일 실행')
+    sched = BlockingScheduler()
+    sched.add_job(hot_video_list, 'cron', second=0)
     sched.start()
+    print('파일 끝남')
+
+
