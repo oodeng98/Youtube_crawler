@@ -9,7 +9,7 @@ import datetime
 from tqdm import tqdm
 import googleapiclient.errors
 import urllib.request
-from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 
 
 def get_api_key():
@@ -65,6 +65,7 @@ def hot_video_list():
 
     data = []
     for categoryId in tqdm(category_dic):
+        print(category_dic[categoryId])
         try:
             response = youtube.videos().list(part='snippet, statistics, topicDetails', chart='mostPopular',
                                              regionCode='kr',
@@ -72,6 +73,7 @@ def hot_video_list():
         except googleapiclient.errors.HttpError:
             continue
 
+        rank = 1
         for item in response['items']:
             popular_video = {}
             video = {}
@@ -84,6 +86,9 @@ def hot_video_list():
                 except KeyError:
                     popular_video[statistic] = ''
             popular_video['videoId'] = item['id']
+            popular_video['rank'] = rank
+            popular_video['category'] = category_dic[categoryId]
+            rank += 1
 
             video['videoId'] = item['id']
             for snip in ['description', 'title', 'publishedAt', 'tags', 'channelId']:
@@ -154,10 +159,15 @@ def video_comment(video_id, filepath='./comments'):
 
 
 if __name__ == "__main__":
-    print('파일 실행')
-    sched = BlockingScheduler()
-    sched.add_job(hot_video_list, 'cron', second=0)
-    sched.start()
-    print('파일 끝남')
+    # sched = BackgroundScheduler()  # 이렇게 실행해도 Blocking이랑 마찬가지지만 여러개를 실행할 수 잇다는 장점이 있는건가?
+    # sched.add_job(hot_video_list, 'cron', minute=0)
+    # sched.start()
+    # try:
+    #     while True:
+    #         time.sleep(6000)
+    #         print('파일 아직 실행중')
+    # except (KeyboardInterrupt, SystemExit):
+    #     sched.shutdown()
+    hot_video_list()
 
 
