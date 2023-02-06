@@ -10,6 +10,7 @@ from tqdm import tqdm
 import googleapiclient.errors
 import urllib.request
 from apscheduler.schedulers.background import BackgroundScheduler
+import boto3
 
 
 def get_api_key():
@@ -158,16 +159,52 @@ def video_comment(video_id, filepath='./comments'):
     df.to_csv(filepath + f'/{video_id}.csv', header=['comment', 'author', 'date', 'num_likes'], index=False)
 
 
+def run():
+    sched = BackgroundScheduler()
+    sched.add_job(hot_video_list, 'cron', minute=0)
+    sched.start()
+    try:
+        while True:
+            time.sleep(6000)
+            print('파일 아직 실행중')
+    except (KeyboardInterrupt, SystemExit):
+        sched.shutdown()
+
+
+def data_to_db():
+    dynamodb = boto3.resource('dynamodb')
+
+    table = dynamodb.create_table(
+        TableName='users',
+        KeySchema=[
+            {
+                'AttributeName': 'username',
+                'KeyType': 'HASH'
+            },
+            {
+                'AttributeName': 'last_name',
+                'KeyType': 'RANGE'
+            }
+        ],
+        AttributeDefinitions=[
+            {
+                'AttributeName': 'username',
+                'AttributeType': 'S'
+            },
+            {
+                'AttributeName': 'last_name',
+                'AttributeType': 'S'
+            },
+        ],
+        ProvisionedThroughput={
+            'ReadCapacityUnits': 5,
+            'WriteCapacityUnits': 5
+        }
+    )
+
+
 if __name__ == "__main__":
-    # sched = BackgroundScheduler()  # 이렇게 실행해도 Blocking이랑 마찬가지지만 여러개를 실행할 수 잇다는 장점이 있는건가?
-    # sched.add_job(hot_video_list, 'cron', minute=0)
-    # sched.start()
-    # try:
-    #     while True:
-    #         time.sleep(6000)
-    #         print('파일 아직 실행중')
-    # except (KeyboardInterrupt, SystemExit):
-    #     sched.shutdown()
-    hot_video_list()
+    # run()
+    data_to_db()
 
 

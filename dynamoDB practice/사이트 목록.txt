@@ -1,1 +1,2 @@
 dynamodb 개발자 안내서: https://docs.aws.amazon.com/ko_kr/amazondynamodb/latest/developerguide/Introduction.html
+https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Client.create_table
