@@ -11,6 +11,7 @@ import googleapiclient.errors
 import urllib.request
 from apscheduler.schedulers.background import BackgroundScheduler
 import boto3
+import dynamodb
 
 
 def get_api_key():
@@ -66,7 +67,6 @@ def hot_video_list():
 
     data = []
     for categoryId in tqdm(category_dic):
-        print(category_dic[categoryId])
         try:
             response = youtube.videos().list(part='snippet, statistics, topicDetails', chart='mostPopular',
                                              regionCode='kr',
@@ -90,6 +90,10 @@ def hot_video_list():
             popular_video['videoId'] = item['id']
             popular_video['category'] = category_dic[categoryId]
             rank += 1
+
+            # dynamodb.put_item('PopularVideo', popular_video)
+            print(item)
+            # return
 
             video['videoId'] = item['id']
             for snip in ['title', 'description', 'publishedAt', 'tags', 'channelId']:
@@ -169,38 +173,6 @@ def run():
             print('파일 아직 실행중')
     except (KeyboardInterrupt, SystemExit):
         sched.shutdown()
-
-
-def data_to_db():
-    dynamodb = boto3.resource('dynamodb')
-
-    table = dynamodb.create_table(
-        TableName='users',
-        KeySchema=[
-            {
-                'AttributeName': 'username',
-                'KeyType': 'HASH'
-            },
-            {
-                'AttributeName': 'last_name',
-                'KeyType': 'RANGE'
-            }
-        ],
-        AttributeDefinitions=[
-            {
-                'AttributeName': 'username',
-                'AttributeType': 'S'
-            },
-            {
-                'AttributeName': 'last_name',
-                'AttributeType': 'S'
-            },
-        ],
-        ProvisionedThroughput={
-            'ReadCapacityUnits': 5,
-            'WriteCapacityUnits': 5
-        }
-    )
 
 
 if __name__ == "__main__":

@@ -177,4 +177,4 @@ config.ini
 most_popular_videos
 video_category.json
 comments
-dynamoDB practice/JeongTaeWan_accessKeys.csv
+JeongTaeWan_accessKeys.csv
