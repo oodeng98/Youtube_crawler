@@ -80,19 +80,19 @@ def hot_video_list():
             video = {}
             channel = {}
 
-            popular_video['confirmation_time'] = now
+            popular_video['rank'] = rank
             for statistic in ['viewCount', 'likeCount', 'commentCount']:
                 try:
                     popular_video[statistic] = item['statistics'][statistic]
                 except KeyError:
                     popular_video[statistic] = ''
+            popular_video['confirmation_time'] = now
             popular_video['videoId'] = item['id']
-            popular_video['rank'] = rank
             popular_video['category'] = category_dic[categoryId]
             rank += 1
 
             video['videoId'] = item['id']
-            for snip in ['description', 'title', 'publishedAt', 'tags', 'channelId']:
+            for snip in ['title', 'description', 'publishedAt', 'tags', 'channelId']:
                 try:
                     video[snip] = item['snippet'][snip]
                 except KeyError:
@@ -204,7 +204,6 @@ def data_to_db():
 
 
 if __name__ == "__main__":
-    # run()
-    data_to_db()
+    hot_video_list()
 
 
