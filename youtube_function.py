@@ -44,6 +44,7 @@ def hot_video_list():
     print(f'{now} program start')
     youtube = build('youtube', 'v3', developerKey=get_api_key())
 
+    # 폴더 및 파일 생성 파트
     if 'video_category.json' not in os.listdir():
         video_category_list()
         time.sleep(10)
@@ -80,20 +81,19 @@ def hot_video_list():
             video = {}
             channel = {}
 
+            popular_video['videoId'] = item['id']
+            popular_video['confirmation_time'] = now
+
             popular_video['rank'] = rank
             for statistic in ['viewCount', 'likeCount', 'commentCount']:
                 try:
                     popular_video[statistic] = item['statistics'][statistic]
                 except KeyError:
                     popular_video[statistic] = ''
-            popular_video['confirmation_time'] = now
-            popular_video['videoId'] = item['id']
-            popular_video['category'] = category_dic[categoryId]
-            rank += 1
 
-            # dynamodb.put_item('PopularVideo', popular_video)
-            print(item)
-            # return
+            popular_video['category'] = category_dic[categoryId]
+            dynamodb.put_item('PopularVideo', popular_video)
+            rank += 1
 
             video['videoId'] = item['id']
             for snip in ['title', 'description', 'publishedAt', 'tags', 'channelId']:
@@ -119,9 +119,11 @@ def hot_video_list():
                 video['topicCategories'] = item['topicDetails']['topicCategories']
             except KeyError:
                 video['topicCategories'] = []
+            dynamodb.put_item('Video', video)
 
             channel['channelTitle'] = item['snippet']['channelTitle']
             channel['channelId'] = item['snippet']['channelId']
+            dynamodb.put_item('Channel', channel)
 
             data.append({'popular_video': popular_video, 'video': video, 'channel': channel})
     with open(file_path + f'/data/{now}.json', 'w', encoding='utf-8') as file:
@@ -133,7 +135,7 @@ def hot_video_list():
     return data
 
 
-def video_comment(video_id, filepath='./comments'):
+def video_comment(video_id, filepath='./comments'):  # comments를 모으게 되면 hot_video_list와 형식을 비슷하게 수정해주자
     if 'comments' not in os.listdir():
         os.mkdir('./comments')
         time.sleep(10)
