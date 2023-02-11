@@ -10,8 +10,8 @@ from tqdm import tqdm
 import googleapiclient.errors
 import urllib.request
 from apscheduler.schedulers.background import BackgroundScheduler
-import boto3
 import dynamodb
+from pprint import pprint
 
 
 def get_api_key():
@@ -47,7 +47,7 @@ def hot_video_list():
     # 폴더 및 파일 생성 파트
     if 'video_category.json' not in os.listdir():
         video_category_list()
-        time.sleep(10)
+        time.sleep(5)
 
     with open('./video_category.json', 'r') as file:
         category_dic = json.load(file)
@@ -56,47 +56,45 @@ def hot_video_list():
     if 'most_popular_videos' not in os.listdir():
         os.mkdir('most_popular_videos')
         os.mkdir(file_path + '/image')
-        os.mkdir(file_path + '/data')
 
     if 'image_list.json' not in os.listdir(file_path + '/image/'):
         with open(file_path + '/image_list.json', 'w', encoding='utf-8') as file:
             temp = {}
             json.dump(temp, file)
-            time.sleep(10)
+            time.sleep(5)
     with open(file_path + '/image_list.json', 'r', encoding='utf-8') as file:
         image_list = json.load(file)
 
-    data = []
+    # data = []
     for categoryId in tqdm(category_dic):
         try:
             response = youtube.videos().list(part='snippet, statistics, topicDetails', chart='mostPopular',
                                              regionCode='kr',
-                                             videoCategoryId=categoryId, maxResults=50).execute()
+                                             videoCategoryId=categoryId, maxResults=50).execute()  # 50이 최대
         except googleapiclient.errors.HttpError:
             continue
 
         rank = 1
         for item in response['items']:
-            popular_video = {}
             video = {}
-            channel = {}
+            popular_video = {'confirmation_time': now, 'rank': rank}
 
-            popular_video['videoId'] = item['id']
-            popular_video['confirmation_time'] = now
-
-            popular_video['rank'] = rank
             for statistic in ['viewCount', 'likeCount', 'commentCount']:
                 try:
                     popular_video[statistic] = item['statistics'][statistic]
                 except KeyError:
                     popular_video[statistic] = ''
-
             popular_video['category'] = category_dic[categoryId]
-            dynamodb.put_item('PopularVideo', popular_video)
+
+            video['popularVideo'] = [popular_video]
             rank += 1
 
-            video['videoId'] = item['id']
-            for snip in ['title', 'description', 'publishedAt', 'tags', 'channelId']:
+            if dynamodb.conditional_search('Video', item['id'])['Items']:
+                dynamodb.update_item('Video', 'popularVideo', popular_video, 'ADD')
+                continue
+
+            video['video_id'] = item['id']
+            for snip in ['title', 'description', 'publishedAt', 'tags', 'channelId', 'channelTitle']:
                 try:
                     video[snip] = item['snippet'][snip]
                 except KeyError:
@@ -121,48 +119,59 @@ def hot_video_list():
                 video['topicCategories'] = []
             dynamodb.put_item('Video', video)
 
-            channel['channelTitle'] = item['snippet']['channelTitle']
-            channel['channelId'] = item['snippet']['channelId']
-            dynamodb.put_item('Channel', channel)
-
-            data.append({'popular_video': popular_video, 'video': video, 'channel': channel})
-    with open(file_path + f'/data/{now}.json', 'w', encoding='utf-8') as file:
-        json.dump(data, file)
-
     with open(file_path + f'/image_list.json', 'w', encoding='utf-8') as file:
         json.dump(image_list, file)
 
-    return data
+    # return data
 
 
-def video_comment(video_id, filepath='./comments'):  # comments를 모으게 되면 hot_video_list와 형식을 비슷하게 수정해주자
-    if 'comments' not in os.listdir():
-        os.mkdir('./comments')
-        time.sleep(10)
-    comments = []
+def video_comment(video_id):
     api_obj = build('youtube', 'v3', developerKey=get_api_key())
     response = api_obj.commentThreads().list(part='snippet,replies', videoId=video_id, maxResults=100).execute()
 
     while response:
         for item in response['items']:
-            comment = item['snippet']['topLevelComment']['snippet']
-            comments.append(
-                [comment['textOriginal'], comment['authorDisplayName'], comment['publishedAt'], comment['likeCount']])
+            pprint(item)
+            temp = item['snippet']['topLevelComment']['snippet']
+            comment = {'authorChannelId': temp['authorChannelId']['value'], 'author': temp['authorDisplayName']}
+            for i in ['textOriginal', 'publishedAt', 'likeCount']:
+                comment[i] = temp[i]
 
+            comment['reply'] = []
             if item['snippet']['totalReplyCount']:
                 for reply_item in item['replies']['comments']:
-                    reply = reply_item['snippet']
-                    comments.append(
-                        [reply['textOriginal'], reply['authorDisplayName'], reply['publishedAt'], reply['likeCount']])
+                    temp = reply_item['snippet']
+                    reply = {'authorChannelId': temp['authorChannelId']['value'], 'author': temp['authorDisplayName']}
+                    for i in ['textOriginal', 'publishedAt', 'likeCount']:
+                        reply[i] = temp[i]
+                    comment['reply'].append(reply)
 
         if 'nextPageToken' in response:
             response = api_obj.commentThreads().list(part='snippet,replies', videoId=video_id,
                                                      pageToken=response['nextPageToken'], maxResults=100).execute()
         else:
             break
+    # with open('comments' + f'/{video_id}.json', 'w', encoding='utf-8') as file:
+    #     json.dump(comments, file)
 
-    df = pd.DataFrame(comments)
-    df.to_csv(filepath + f'/{video_id}.csv', header=['comment', 'author', 'date', 'num_likes'], index=False)
+
+def local_to_db():  # 이것도 변경해야함
+    filepath = 'most_popular_videos/data/'
+    file_lst = os.listdir(filepath)
+
+    for f in file_lst:
+        with open(filepath + f, 'r', encoding='utf-8') as file:
+            js = json.load(file)
+            for item in js:
+                dynamodb.put_item('PopularVideo', item['popular_video'])
+                dynamodb.put_item('Channel', item['channel'])
+                dynamodb.put_item('Video', item['Video'])
+
+
+def daily_video_comment():
+    # 하루치 hot_video list를 가져온 후 댓글을 가져오는 형태로 진행?
+    # 오후 10시에 진행하면 되지 않을까 싶은데
+    pass
 
 
 def run():
@@ -178,6 +187,6 @@ def run():
 
 
 if __name__ == "__main__":
-    hot_video_list()
+    print('youtube_function.py 실행')
 
-
+    video_comment('kra0f71EIgc')

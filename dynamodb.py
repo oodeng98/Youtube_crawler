@@ -1,4 +1,6 @@
 import boto3
+from boto3.dynamodb.conditions import Key
+from pprint import pprint
 
 
 def access_dynamodb(type):
@@ -13,120 +15,12 @@ def create_table():
     try:
         table = dynamodb.create_table(
             TableName='Video',
-            KeySchema=[
-                {
-                    'AttributeName': 'videoId',
-                    'KeyType': 'HASH'
-                },
-                {
-                    'AttributeName': 'publishedAt',
-                    'KeyType': 'RANGE'
-                }
-            ],
-            AttributeDefinitions=[
-                {
-                    'AttributeName': 'videoId',
-                    'AttributeType': 'S'
-                },
-                {
-                    'AttributeName': 'publishedAt',
-                    'AttributeType': 'S'
-                }
-            ],
-            ProvisionedThroughput={
-                'ReadCapacityUnits': 5,
-                'WriteCapacityUnits': 5
-            }
-        )
+            KeySchema=[{'AttributeName': 'video_id', 'KeyType': 'HASH'},
+                       {'AttributeName': 'title', 'KeyType': 'RANGE'}],
+            AttributeDefinitions=[{'AttributeName': 'video_id', 'AttributeType': 'S'},
+                                  {'AttributeName': 'title', 'AttributeType': 'S'}],
+            ProvisionedThroughput={'ReadCapacityUnits': 5, 'WriteCapacityUnits': 5})
         print('Video 생성 완료')
-
-        table = dynamodb.create_table(
-            TableName='Channel',
-            KeySchema=[
-                {
-                    'AttributeName': 'channelId',
-                    'KeyType': 'HASH'
-                },
-                {
-                    'AttributeName': 'channelTitle',
-                    'KeyType': 'RANGE'
-                }
-            ],
-            AttributeDefinitions=[
-                {
-                    'AttributeName': 'channelId',
-                    'AttributeType': 'S'
-                },
-                {
-                    'AttributeName': 'channelTitle',
-                    'AttributeType': 'S'
-                }
-            ],
-            ProvisionedThroughput={
-                'ReadCapacityUnits': 5,
-                'WriteCapacityUnits': 5
-            }
-        )
-        print('Channel 생성 완료')
-
-        table = dynamodb.create_table(
-            TableName='PopularVideo',
-            KeySchema=[
-                {
-                    'AttributeName': 'videoId',
-                    'KeyType': 'HASH'
-                },
-                {
-                    'AttributeName': 'confirmation_time',
-                    'KeyType': 'RANGE'
-                }
-            ],
-            AttributeDefinitions=[
-                {
-                    'AttributeName': 'videoId',
-                    'AttributeType': 'S'
-                },
-                {
-                    'AttributeName': 'confirmation_time',
-                    'AttributeType': 'S'
-                }
-            ],
-            ProvisionedThroughput={
-                'ReadCapacityUnits': 5,
-                'WriteCapacityUnits': 5
-            }
-        )
-        print('PopularVideo 생성 완료')
-
-        table = dynamodb.create_table(
-            TableName='Comment',
-            KeySchema=[
-                {
-                    'AttributeName': 'author',
-                    'KeyType': 'HASH'
-                },
-                {
-                    'AttributeName': 'date',
-                    'KeyType': 'RANGE'
-                }
-            ],
-            AttributeDefinitions=[
-                {
-                    'AttributeName': 'author',
-                    'AttributeType': 'S'
-                },
-                {
-                    'AttributeName': 'date',
-                    'AttributeType': 'S'
-                },
-            ],
-            ProvisionedThroughput={
-                'ReadCapacityUnits': 5,
-                'WriteCapacityUnits': 5
-            }
-        )
-        print('Comment 생성 완료')
-
     except Exception as e:
         print('Error occur!')
         print(e)
@@ -139,7 +33,8 @@ def put_item(table_name, info):
 
 def get_item(table_name, key):
     table = access_dynamodb('resource').Table(table_name)
-    table.get_item(Key=key)
+    ret = table.get_item(Key=key)  # hash key, sort key 다 줘야 함
+    return ret
 
 
 def get_table_list():
@@ -160,9 +55,42 @@ def delete_table(table_name):
     print(ret)
 
 
+def scan(table_name):
+    # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Client.scan
+    # 자세한 내용은 윗 링크 참조
+    # 지금 코드는 테이블의 전체 데이터를 가져오도록 설계되어있음
+    table = access_dynamodb('resource').Table(table_name)
+    response = table.scan()
+    # for item in response:
+    #     print(response[item])
+    return response
+
+
+def conditional_search(table_name, key):
+    table = access_dynamodb('resource').Table(table_name)
+    name_key_dic = {'Video': 'video_id', 'Comment': 'authorChannelId'}
+    query = {'KeyConditionExpression': Key(name_key_dic[table_name]).eq(key)}
+    return table.query(**query)
+
+
+def update_item(table_name, key, var, value, action):
+    table = access_dynamodb('resource').Table(table_name)
+    ret = table.update_item(Key=key, ReturnValues='ALL_NEW',
+                            AttributeUpdates={var: {'Value': value, 'Action': action}})  # Value or Action
+    # AttributeUpdates, Expected, ConditionalOperator, ReturnValues, ReturnConsumedCapacity, ReturnItemCollectionMetrics
+    # UpdateExpression, ConditionExpression, ExpressionAttributeNames, ExpressionAttributeValues
+    return ret
+
+
+def update_comment(table_name, video_id, new_comments):
+    origin = conditional_search(table_name, video_id)
+    before_comments = origin['Items'][0]['comments']
+    for comment in new_comments:
+        before_comments['test2'] = 'check?'
+    update_item('Video', {'video_id': video_id, 'title': origin['Items'][0]['title']}, 'comments', comments, 'PUT')
+    pprint(conditional_search('Video', 'fk8vvmHIWAA')['Items'])
+
+
 if __name__ == '__main__':
     print('dynamodb.py 실행')
-    create_table()
-    get_table_list()
-    # put_item('PopularVideo', {'videoId': '1', 'confirmation_time': '0'})  # 이건 된다
-
+    pprint(temp)
