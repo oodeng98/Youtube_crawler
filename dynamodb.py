@@ -93,4 +93,3 @@ def update_comment(table_name, video_id, new_comments):
 
 if __name__ == '__main__':
     print('dynamodb.py 실행')
-    pprint(temp)

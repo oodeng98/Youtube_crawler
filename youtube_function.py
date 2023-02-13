@@ -188,5 +188,8 @@ def run():
 
 if __name__ == "__main__":
     print('youtube_function.py 실행')
+    youtube = build('youtube', 'v3', developerKey=get_api_key())
+    response = youtube.videos().list(part='snippet, statistics, topicDetails', chart='mostPopular',
+                                     regionCode='kr', maxResults=50).execute()  # 50이 최대
+    pprint(response)
 
-    video_comment('kra0f71EIgc')
