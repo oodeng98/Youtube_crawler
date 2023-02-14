@@ -14,13 +14,13 @@ def create_table():
     dynamodb = access_dynamodb('client')
     try:
         table = dynamodb.create_table(
-            TableName='Video',
-            KeySchema=[{'AttributeName': 'video_id', 'KeyType': 'HASH'},
-                       {'AttributeName': 'title', 'KeyType': 'RANGE'}],
-            AttributeDefinitions=[{'AttributeName': 'video_id', 'AttributeType': 'S'},
-                                  {'AttributeName': 'title', 'AttributeType': 'S'}],
+            TableName='Youtube',
+            KeySchema=[{'AttributeName': 'Item', 'KeyType': 'HASH'},
+                       {'AttributeName': 'Id', 'KeyType': 'RANGE'}],
+            AttributeDefinitions=[{'AttributeName': 'Item', 'AttributeType': 'S'},
+                                  {'AttributeName': 'Id', 'AttributeType': 'S'}],
             ProvisionedThroughput={'ReadCapacityUnits': 5, 'WriteCapacityUnits': 5})
-        print('Video 생성 완료')
+        print('Youtube table 생성 완료')
     except Exception as e:
         print('Error occur!')
         print(e)

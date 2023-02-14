@@ -1,5 +1,10 @@
 # Youtube_crawler
 
+현재 해야하는 것  
+1, popularVideo의 id를 어떤 형식으로 만들 것인가
+0, comment를 어느 주기로 저장할 것인가 결정  
+1, S3에 이미지 파일 저장해야함
+
 ### 목표
 #### 1, 유튜브 API를 활용하여 매 시간 각 카테고리 별 인기 동영상 목록 저장 - 완료
 #### 2, 유튜브 API를 활용하여 인기 동영상 목록에 올라온 채널의 구독자 추이 저장하기 - 진행중
@@ -13,47 +18,35 @@
 * Common index
   * publishedAt: str, 형태를 통일할 것, PopularVideo의 경우 확인한 시간을 입력한다
 * Video(Partition Key Value)
-  * title: str, video의 제목
-  * description: str, video의 설명
-  * tags: list, 
-  * channelId: str, video를 업로드한 channel의 ID
-  * thumbnailFilePath: str, thumbnail image를 저장한 파일의 위치
-  * topicCategories:
+  * title: str, 비디오 제목
+  * description: str, 비디오 설명
+  * tags: list, 비디오에 달린 해시태그들
+  * channelId: str, 비디오를 업로드한 채널의 ID
+  * thumbnailFilePath: str, 썸네일 이미지 파일을 저장한 위치
+  * topicCategories: list, 비디오의 카테고리들
 * Channel(Partition Key Value)
-  * channelTitle: 
-  * description
-  * customUrl
-  * thumbnailFilePath
-  * country
-  * viewCount
-  * subscriberCount
-  * videoCount
-  * topicCategories
+  * channelTitle: str, 채널 이름
+  * description: str, 채널 설명
+  * customUrl: str, 채널에서 @~ 부분
+  * thumbnailFilePath: str, 썸네일 이미지 파일을 저장한 위치
+  * country: str, 채널의 국가
+  * viewCount: int, 채널의 총 조회수
+  * subscriberCount: int, 채널의 구독자 수
+  * videoCount: int, 채널의 총 비디오 수
+  * topicCategories: str, 채널이 다루는 동영상의 카테고리들
 * PopularVideo(Partition Key Value)
-  * rank: int, video의 인기 급상승 순위
-  * viewCount: int, video의 조회수
-  * likeCount: int, video의 좋아요 수
-  * commentCount: int, video의 댓글 수
-  * category: str, video가 속한 인기 급상승의 카테고리
-  * videoId: str, video의 ID
+  * rank: int, 비디오의 인기 급상승 순위
+  * viewCount: int, 비디오의 조회수
+  * likeCount: int, 비디오의 좋아요 수
+  * commentCount: int, 비디오의 댓글 수
+  * category: str, 비디오가 속한 인기 급상승의 카테고리
+  * videoId: str, 비디오의 ID
 * Comment(Partition Key Value)
   * author: 댓글 작성자의 이름
   * textOriginal: 댓글 내용
   * likeCount: 댓글의 좋아요 수
-  * videoId: 댓글이 작성된 video의 Id
+  * videoId: 댓글이 작성된 비디오의 Id
   * originalComment: 이 댓글이 댓글인지 대댓글인지 판단, None이면 댓글, 대댓글이라면 원래 댓글의 commentId
-
-
-
-현재 해야하는 것  
--4, 채널 데이터는 어떻게 가져올지 고안해야함  
--3, 데이터를 최대한 많이 저장해 두는 것이 좋다, 하지만 용량은 덜 잡아먹게 해야지  
--2, channel 테이블을 새로 만들던 아무튼 새로 넣어야함
--1, list 안에 dict를 넣는 형태로 모두 저장할 것, 더이상의 스키마 변화는 없다  
-0, comment를 어느 주기로 저장할 것인가  
-1, S3에 이미지 파일 저장해야함
-
-
 
 #### 새롭게 배운 지식
 
@@ -63,7 +56,9 @@
 * Google Cloud에서 API 사용 인증을 받아야 한다. 자격증명이 존재하지 않으면 아예 사용이 불가능하다.
 * API사용법은 구글에 검색하는 방법도 있지만 공식 문서를 먼저 활용하는 습관을 들이는 것이 추후 도움이 될 것 같다.
 * 하루 10000개의 쿼리 할당량이 있지만 유튜브 측에 요청해서 올릴 수 있다. 하지만 그 전에 쿼리 사용량을 최적화하는 과정을 선행하자.
-* 모든 데이터는 json 형태로 반환되며, API 공식 문서에서 
+* 모든 데이터는 json 형태로 반환되며, API 공식 문서 사이트에서 직접 실행해 볼 수 있는 기능도 일부 지원한다.
+* 날짜 데이터를 표기하는 표준 방식이 존재한다, https://ohgyun.com/416 이 글을 참고하면 좋음
+* 유튜브 API로 가져오는 대부분의 시간 데이터는 UTC 시간대를 기준으로 한다.
 
 ##### AWS EC2(Ubuntu)
 * 윈도우에서 ssh -i [key 파일 위치] ubuntu@[퍼블릭 IPv4 DNS]를 넣으면 프로그램 설치 없이 쉽게 EC2에 접속이 가능하다. 개인적으로 putty보다 이 방법을 권장한다.

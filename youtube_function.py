@@ -1,6 +1,5 @@
 import requests
 import json
-import pandas as pd
 import configparser
 from googleapiclient.discovery import build
 import os
@@ -40,7 +39,7 @@ def video_category_list():
 
 
 def hot_video_list():
-    now = datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%d-%H")
+    now = datetime.datetime.strftime(datetime.datetime.utcnow(), "%Y-%m-%dT%H:%M:%SZ")
     print(f'{now} program start')
     youtube = build('youtube', 'v3', developerKey=get_api_key())
 
@@ -65,7 +64,6 @@ def hot_video_list():
     with open(file_path + '/image_list.json', 'r', encoding='utf-8') as file:
         image_list = json.load(file)
 
-    # data = []
     for categoryId in tqdm(category_dic):
         try:
             response = youtube.videos().list(part='snippet, statistics, topicDetails', chart='mostPopular',
@@ -74,20 +72,18 @@ def hot_video_list():
         except googleapiclient.errors.HttpError:
             continue
 
-        rank = 1
-        for item in response['items']:
-            video = {}
-            popular_video = {'confirmation_time': now, 'rank': rank}
+        for rank, item in enumerate(response['items']):
+            popular_video = {'confirmation_time': now, 'rank': rank + 1}
 
             for statistic in ['viewCount', 'likeCount', 'commentCount']:
                 try:
                     popular_video[statistic] = item['statistics'][statistic]
                 except KeyError:
-                    popular_video[statistic] = ''
+                    continue
             popular_video['category'] = category_dic[categoryId]
+            popular_video['videoId'] = item['id']
 
-            video['popularVideo'] = [popular_video]
-            rank += 1
+            video = {'popularVideo': [popular_video]}  # 여기부터 다시 수정
 
             if dynamodb.conditional_search('Video', item['id'])['Items']:
                 dynamodb.update_item('Video', 'popularVideo', popular_video, 'ADD')
@@ -187,8 +183,4 @@ def run():
 
 if __name__ == "__main__":
     print('youtube_function.py 실행')
-    youtube = build('youtube', 'v3', developerKey=get_api_key())
-    response = youtube.videos().list(part='snippet, statistics, topicDetails', chart='mostPopular',
-                                     regionCode='kr', maxResults=50).execute()  # 50이 최대
-    pprint(response)
-
+    hot_video_list()
