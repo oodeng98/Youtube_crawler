@@ -1,10 +1,40 @@
 # Youtube_crawler
 
-## 목표
-### 1, 유튜브 API를 활용하여 매 시간 각 카테고리 별 인기 동영상 목록 저장 - 완료
-### 2, 유튜브 API를 활용하여 인기 동영상 목록에 올라온 채널의 구독자 추이 저장하기 - 진행중
-### 3, 인기 동영상에 달린 모든 댓글 저장 후 특정 사용자가 작성한 댓글 검색 기능 지원
-### 4, 앞서 구현한 기능들을 지원하는 사이트 구현
+### 목표
+#### 1, 유튜브 API를 활용하여 매 시간 각 카테고리 별 인기 동영상 목록 저장 - 완료
+#### 2, 유튜브 API를 활용하여 인기 동영상 목록에 올라온 채널의 구독자 추이 저장하기 - 진행중
+#### 3, 인기 동영상에 달린 모든 댓글 저장 후 특정 사용자가 작성한 댓글 검색 기능 지원
+#### 4, 앞서 구현한 기능들을 지원하는 사이트 구현
+
+### 데이터 구조 및 변수 설명
+* Video(Table)
+  * videoId: str, video의 ID(Partition Key)
+  * title: str, video의 제목
+  * description: str, video의 설명
+  * publishedAt: str, video가 올라온 날짜
+  * tags: list, 
+  * channelId: str, video가 올라온 channel의 ID
+  * thumbnailFilePath: str, thumbnail image를 저장한 파일의 위치
+  * topicCategories:
+* Channel(Table)
+* PopularVideo(Table)
+  * confirmation_time: str, 인기 급상승 영상을 확인한 시간
+  * rank: int, video의 인기 급상승 순위
+  * viewCount: int, video의 조회수
+  * likeCount: int, video의 좋아요 수
+  * commentCount: int, video의 댓글 수
+  * category: str, video이 속한 인기 급상승의 카테고리
+  * videoId: str, video의 ID
+* Comment(Table)
+  * authorChannelId: 댓글 작성자의 channelID(Partition Key)
+  * author: 
+  * publishedAt
+  * textOriginal
+  * likeCount
+  * videoId
+  * originalComment
+
+
 
 현재 해야하는 것  
 -4, 채널 데이터는 어떻게 가져올지 고안해야함  
@@ -14,13 +44,11 @@
 0, comment를 어느 주기로 저장할 것인가  
 1, S3에 이미지 파일 저장해야함
 
-번외  
-https://wikidocs.net/book/5445  이거도 재미있어보임  
-" 로 파일 생성해야 오류 안생김"
+
 
 #### 새롭게 배운 지식
 
-Youtube API
+##### Youtube API
 * 앞으로 API KEY와 같은 중요한 키는 text가 아니라 ini파일에 저장하자
 * requests로 API와 소통하는 방법도 있지만 이번 경우에는 googleapiclient.discovery.build를 활용하는 방법도 존재한다.
 * Google Cloud에서 API 사용 인증을 받아야 한다. 자격증명이 존재하지 않으면 아예 사용이 불가능하다.
@@ -28,7 +56,7 @@ Youtube API
 * 하루 10000개의 쿼리 할당량이 있지만 유튜브 측에 요청해서 올릴 수 있다. 하지만 그 전에 쿼리 사용량을 최적화하는 과정을 선행하자.
 * 모든 데이터는 json 형태로 반환되며, API 공식 문서에서 
 
-AWS EC2(Ubuntu)
+##### AWS EC2(Ubuntu)
 * 윈도우에서 ssh -i [key 파일 위치] ubuntu@[퍼블릭 IPv4 DNS]를 넣으면 프로그램 설치 없이 쉽게 EC2에 접속이 가능하다. 개인적으로 putty보다 이 방법을 권장한다.
 * 이때 퍼블릭 IPv4 DNS를 고정하려면 탄력적 IP(Elastic IP)를 설정하면 된다.
 * 인스턴스에 연결되어 있지 않은 탄력적 IP는 돈이 나가므로 조심하자. 물론 굉장히 소액이긴 하다.
@@ -42,7 +70,7 @@ AWS EC2(Ubuntu)
 * EC2 프리티어의 한달 사용 가능 시간은 750시간으로, 서버를 하나만 돌린다면 한달 내내 돌려도 충분하다.(아마도?)
 * 특정 디렉토리의 용량을 확인하는 명령어는 df -hs [folder 이름], 현재 폴더에 있는 폴더 및 파일의 용량을 출력하는 명령여는 du -hs *이다.
 
-AWS DynamoDB
+#####  AWS DynamoDB
 * 프리티어로 25GB의 용량을 사용할 수 있다.
 * AWS S3와 연동이 쉬운 것으로 보인다. 직접 사용해보진 않았지만 클릭 몇번으로 S3로 데이터 전송이 가능하다.
 * 공식 문서를 제외한 자료는 웬만하면 없다. 문제가 발생한다면 직접 부딪혀보는 방식으로 해결하게 된다.
@@ -51,10 +79,13 @@ AWS DynamoDB
 * AWS CLI를 설치하고 aws configure 입력, 그 후 해당하는 값들을 설정하면 비로소 boto3.resource를 사용할 수 있다. 
 * 함수로 DynamoDB에 접근하기 전에 데이터 구조를 완벽히 짜고 접근하는 것이 좋은 것 같다.
 * 필자는 이번 프로젝트에서 일주일 넘게 데이터 구조를 갈아치우는 경험을 함
+* Partition Key를 설계할 때 고려해야하는 부분
 * query가 scan보다 비용 및 효율이 좋다, 하지만 Key-Value Nosql인 DynamoDB의 특성상 query를 하기가 어렵다.
 * 그래서 글로벌 보조 인덱스(GSI)를 활용하는 듯 싶다. 로컬 보조 인덱스(LSI)와 기능 면에서 어떤 차이가 있는지는 모르겠다.
 * LSI는 테이블 생성 이후 생성할 수 없는 반면 GSI는 테이블 생성 이후에도 설정할 수 있다.
 * GSI는 테이블 내에 간단한 다른 테이블을 만들어준다고 생각하면 편한 듯 싶다.
-* 유튜브 비디오 ID로 DynamoDB PK를 설정, 조회수로 SK를 설정했다면 좋아요 수를 가져오기 위해서는 scan과정이 필요하다.
-* 아 이거 아닌거같은데 다음에 좀 더 말을 정리해서 설명을 적어보자. 간단한 다른 테이블을 만들어준다는 설명이 맞는 것 같은데
-* 지금까지 내가 본 설명에서는 새롭게 만들어지는 테이블이 [새롭게 키로 설정한 인덱스], [찾고자 하는 값을 가진 인덱스], [기존 키 값]으로 이루어진 것만 봤다.
+* 유튜브 비디오 ID로 DynamoDB PK를 설정, 조회수로 SK를 설정했다면 좋아요 수를 기준으로 정렬하기 위해서는 scan과정이 필요하다.
+* 그렇다면 GSI로 비디오 ID를 설정하고, 새로운 SK로 좋아요 수를 지정한다면 query로 쉽게 정렬할 수 있다.
+
+#### 번외  
+https://wikidocs.net/book/5445  이거도 재미있어보임
