@@ -131,7 +131,6 @@ def video_comment(video_id):
 
     while response:
         for item in response['items']:
-            pprint(item)
             temp = item['snippet']['topLevelComment']['snippet']
             comment = {'authorChannelId': temp['authorChannelId']['value'], 'author': temp['authorDisplayName']}
             for i in ['textOriginal', 'publishedAt', 'likeCount']:

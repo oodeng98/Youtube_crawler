@@ -7,32 +7,41 @@
 #### 4, 앞서 구현한 기능들을 지원하는 사이트 구현
 
 ### 데이터 구조 및 변수 설명
-* Video(Table)
-  * videoId: str, video의 ID(Partition Key)
+#### Item: str, Partition Key
+#### Id: str, sort key
+
+* Common index
+  * publishedAt: str, 형태를 통일할 것, PopularVideo의 경우 확인한 시간을 입력한다
+* Video(Partition Key Value)
   * title: str, video의 제목
   * description: str, video의 설명
-  * publishedAt: str, video가 올라온 날짜
   * tags: list, 
-  * channelId: str, video가 올라온 channel의 ID
+  * channelId: str, video를 업로드한 channel의 ID
   * thumbnailFilePath: str, thumbnail image를 저장한 파일의 위치
   * topicCategories:
-* Channel(Table)
-* PopularVideo(Table)
-  * confirmation_time: str, 인기 급상승 영상을 확인한 시간
+* Channel(Partition Key Value)
+  * channelTitle: 
+  * description
+  * customUrl
+  * thumbnailFilePath
+  * country
+  * viewCount
+  * subscriberCount
+  * videoCount
+  * topicCategories
+* PopularVideo(Partition Key Value)
   * rank: int, video의 인기 급상승 순위
   * viewCount: int, video의 조회수
   * likeCount: int, video의 좋아요 수
   * commentCount: int, video의 댓글 수
-  * category: str, video이 속한 인기 급상승의 카테고리
+  * category: str, video가 속한 인기 급상승의 카테고리
   * videoId: str, video의 ID
-* Comment(Table)
-  * authorChannelId: 댓글 작성자의 channelID(Partition Key)
-  * author: 
-  * publishedAt
-  * textOriginal
-  * likeCount
-  * videoId
-  * originalComment
+* Comment(Partition Key Value)
+  * author: 댓글 작성자의 이름
+  * textOriginal: 댓글 내용
+  * likeCount: 댓글의 좋아요 수
+  * videoId: 댓글이 작성된 video의 Id
+  * originalComment: 이 댓글이 댓글인지 대댓글인지 판단, None이면 댓글, 대댓글이라면 원래 댓글의 commentId
 
 
 
