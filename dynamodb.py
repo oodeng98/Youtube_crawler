@@ -84,7 +84,13 @@ def update_pv(table_name, video_id, new_pv):
     update_item(table_name, {'Item': 'Video', 'Id': video_id}, 'popularVideo', new_pv, 'ADD')
 
 
+def check(table_name, partition_key, check_id):
+    item = get_item(table_name, partition_key, check_id)
+    if 'Item' in item:
+        return 1
+    return 0
+
+
 if __name__ == '__main__':
     print('dynamodb.py 실행')
-
-
+    check('Youtube', 'Video', '송재혁죽어')

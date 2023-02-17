@@ -1,9 +1,9 @@
 # Youtube_crawler
 
 현재 해야하는 것  
-1, popularVideo의 id를 어떤 형식으로 만들 것인가
 0, comment를 어느 주기로 저장할 것인가 결정  
-1, S3에 이미지 파일 저장해야함
+1, 저장된 이미지 파일 비교 기능과 변경 된 경우에만 저장하게 만드는 기능 추가  
+2, S3에 이미지 파일 저장해야함
 
 ### 목표
 #### 1, 유튜브 API를 활용하여 매 시간 각 카테고리 별 인기 동영상 목록 저장 - 완료
@@ -25,13 +25,12 @@
   * thumbnailFilePath: str, 썸네일 이미지 파일을 저장한 위치
   * thumbnailUrl: str, 썸네일 이미지 파일의 url
   * topicCategories: list, 비디오의 카테고리들
-  * PopularVideo: list, 
-    * confirmationAt: str, 인기 동영상 순위를 확인한 시간 
-    * rank: int, 비디오의 인기 급상승 순위
-    * viewCount: int, 비디오의 조회수
-    * likeCount: int, 비디오의 좋아요 수
-    * commentCount: int, 비디오의 댓글 수
-    * category: str, 비디오가 속한 인기 급상승의 카테고리
+  * viewCount: int, 비디오의 조회수
+  * likeCount: int, 비디오의 좋아요 수
+  * commentCount: int, 비디오의 댓글 수
+  * confirmationAt: str, 인기 동영상 순위를 확인한 시간 
+  * rank: int, 비디오의 인기 급상승 순위
+  * category: str, 비디오가 속한 인기 급상승의 카테고리
 * Channel(Partition Key Value)
   * title: str, 채널 이름
   * description: str, 채널 설명
