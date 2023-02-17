@@ -31,9 +31,9 @@ def put_item(table_name, info):
     table.put_item(Item=info)
 
 
-def get_item(table_name, key):
+def get_item(table_name, partition_key, sort_key):
     table = access_dynamodb('resource').Table(table_name)
-    ret = table.get_item(Key=key)  # hash key, sort key 다 줘야 함
+    ret = table.get_item(Key={'Item': partition_key, 'Id': sort_key})
     return ret
 
 
@@ -66,30 +66,25 @@ def scan(table_name):
     return response
 
 
-def conditional_search(table_name, key):
+def conditional_search(table_name, keyconditionexpression):
+    # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Client.query 참조
     table = access_dynamodb('resource').Table(table_name)
-    name_key_dic = {'Video': 'video_id', 'Comment': 'authorChannelId'}
-    query = {'KeyConditionExpression': Key(name_key_dic[table_name]).eq(key)}
-    return table.query(**query)
+    ret = table.query(KeyConditionExpression=keyconditionexpression)
+    return ret
 
 
 def update_item(table_name, key, var, value, action):
     table = access_dynamodb('resource').Table(table_name)
     ret = table.update_item(Key=key, ReturnValues='ALL_NEW',
-                            AttributeUpdates={var: {'Value': value, 'Action': action}})  # Value or Action
-    # AttributeUpdates, Expected, ConditionalOperator, ReturnValues, ReturnConsumedCapacity, ReturnItemCollectionMetrics
-    # UpdateExpression, ConditionExpression, ExpressionAttributeNames, ExpressionAttributeValues
+                            AttributeUpdates={var: {'Value': value, 'Action': action}})
     return ret
 
 
-def update_comment(table_name, video_id, new_comments):
-    origin = conditional_search(table_name, video_id)
-    before_comments = origin['Items'][0]['comments']
-    for comment in new_comments:
-        before_comments['test2'] = 'check?'
-    update_item('Video', {'video_id': video_id, 'title': origin['Items'][0]['title']}, 'comments', comments, 'PUT')
-    pprint(conditional_search('Video', 'fk8vvmHIWAA')['Items'])
+def update_pv(table_name, video_id, new_pv):
+    update_item(table_name, {'Item': 'Video', 'Id': video_id}, 'popularVideo', new_pv, 'ADD')
 
 
 if __name__ == '__main__':
     print('dynamodb.py 실행')
+
+

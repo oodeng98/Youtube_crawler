@@ -23,24 +23,25 @@
   * tags: list, 비디오에 달린 해시태그들
   * channelId: str, 비디오를 업로드한 채널의 ID
   * thumbnailFilePath: str, 썸네일 이미지 파일을 저장한 위치
+  * thumbnailUrl: str, 썸네일 이미지 파일의 url
   * topicCategories: list, 비디오의 카테고리들
+  * PopularVideo: list, 
+    * confirmationAt: str, 인기 동영상 순위를 확인한 시간 
+    * rank: int, 비디오의 인기 급상승 순위
+    * viewCount: int, 비디오의 조회수
+    * likeCount: int, 비디오의 좋아요 수
+    * commentCount: int, 비디오의 댓글 수
+    * category: str, 비디오가 속한 인기 급상승의 카테고리
 * Channel(Partition Key Value)
-  * channelTitle: str, 채널 이름
+  * title: str, 채널 이름
   * description: str, 채널 설명
   * customUrl: str, 채널에서 @~ 부분
-  * thumbnailFilePath: str, 썸네일 이미지 파일을 저장한 위치
   * country: str, 채널의 국가
+  * thumbnailFilePath: str, 썸네일 이미지 파일을 저장한 위치
   * viewCount: int, 채널의 총 조회수
   * subscriberCount: int, 채널의 구독자 수
   * videoCount: int, 채널의 총 비디오 수
   * topicCategories: str, 채널이 다루는 동영상의 카테고리들
-* PopularVideo(Partition Key Value)
-  * rank: int, 비디오의 인기 급상승 순위
-  * viewCount: int, 비디오의 조회수
-  * likeCount: int, 비디오의 좋아요 수
-  * commentCount: int, 비디오의 댓글 수
-  * category: str, 비디오가 속한 인기 급상승의 카테고리
-  * videoId: str, 비디오의 ID
 * Comment(Partition Key Value)
   * author: 댓글 작성자의 이름
   * textOriginal: 댓글 내용
