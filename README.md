@@ -1,10 +1,5 @@
 # Youtube_crawler
 
-현재 해야하는 것  
-0, comment를 어느 주기로 저장할 것인가 결정  
-1, 저장된 이미지 파일 비교 기능과 변경 된 경우에만 저장하게 만드는 기능 추가  
-2, S3에 이미지 파일 저장해야함
-
 ### 목표
 #### 1, 유튜브 API를 활용하여 매 시간 각 카테고리 별 인기 동영상 목록 저장 - 완료
 #### 2, 유튜브 API를 활용하여 인기 동영상 목록에 올라온 채널의 구독자 추이 저장하기 - 진행중
@@ -16,7 +11,8 @@
 #### Id: str, sort key
 
 * Common index
-  * publishedAt: str, 형태를 통일할 것, PopularVideo의 경우 확인한 시간을 입력한다
+  * publishedAt: str
+  * 
 * Video(Partition Key Value)
   * title: str, 비디오 제목
   * description: str, 비디오 설명
@@ -42,6 +38,7 @@
   * videoCount: int, 채널의 총 비디오 수
   * topicCategories: str, 채널이 다루는 동영상의 카테고리들
 * Comment(Partition Key Value)
+  * authorChannelId: str, 댓글 작성자 채널의 Id 
   * author: 댓글 작성자의 이름
   * textOriginal: 댓글 내용
   * likeCount: 댓글의 좋아요 수
@@ -72,7 +69,7 @@
 * 로컬 컴퓨터에서 만든 프로그램을 다른 환경에서 실행하고 싶다면 pip list --format=freeze > requirements.txt 로 파일을 만들어서 같이 넘겨주자.
 * 그 후 pip install -r requirements.txt를 실행하자, 참고로 requirements.txt는 관행적으로 사용되는 파일 이름으로, 앞으로도 이 이름을 사용하자.
 * EC2 프리티어의 한달 사용 가능 시간은 750시간으로, 서버를 하나만 돌린다면 한달 내내 돌려도 충분하다.(아마도?)
-* 특정 디렉토리의 용량을 확인하는 명령어는 df -hs [folder 이름], 현재 폴더에 있는 폴더 및 파일의 용량을 출력하는 명령여는 du -hs *이다.
+* 특정 디렉토리의 용량을 확인하는 명령어는 du -sh [folder 이름], 현재 폴더에 있는 폴더 및 파일의 용량을 출력하는 명령여는 du -sh *이다.
 
 #####  AWS DynamoDB
 * 프리티어로 25GB의 용량을 사용할 수 있다.
@@ -92,4 +89,5 @@
 * 그렇다면 GSI로 비디오 ID를 설정하고, 새로운 SK로 좋아요 수를 지정한다면 query로 쉽게 정렬할 수 있다.
 
 #### 번외  
-https://wikidocs.net/book/5445  이거도 재미있어보임
+* dynamodb에서 ProvisionedThroughputExceededException가 발생하는 경우가 있었는데, 이를 해결하기 위해서 코드를 간소화하려 했더니 이미지 파일을 저장할 S3의 필요성을 느끼게 되었다. 하나의 기술로 해결할 수 없는 경우라고 생각하진 않지만, 다른 기술이 있으면 더 편하게 해결할 수 있는 경우는 맞는 것 같다. 프로그래밍을 하면서 이런 경우를 꽤나 마주하곤 하는데, 이번에는 S3를 사용해보는 방향으로 가닥을 잡았다.
+* https://wikidocs.net/book/5445  이거도 재미있어보임

@@ -48,10 +48,6 @@ def pre_work():
         if folder not in os.listdir():
             os.mkdir(folder)
             os.mkdir(folder + '/image')
-        if 'image_list.json' not in os.listdir(folder + '/image/'):
-            with open(folder + '/image_list.json', 'w', encoding='utf-8') as file:
-                json.dump({}, file)
-                time.sleep(2)
 
 
 def video_collect():
@@ -60,15 +56,13 @@ def video_collect():
     with open('./video_category.json', 'r') as file:
         category_dic = json.load(file)
     file_path = './most_popular_videos'
-    with open(file_path + '/image_list.json', 'r', encoding='utf-8') as file:
-        image_list = json.load(file)
 
     channel = set()
     for categoryId in tqdm(category_dic):
         try:
             response = youtube.videos().list(part='id, snippet, statistics, topicDetails', chart='mostPopular',
                                              regionCode='kr',
-                                             videoCategoryId=categoryId, maxResults=50).execute()  # 50이 최대
+                                             videoCategoryId=categoryId, maxResults=50).execute()
         except googleapiclient.errors.HttpError:
             continue
 
@@ -90,10 +84,7 @@ def video_collect():
             video['thumbnailFilePath'] = imageFilePath
             for image in ['maxres', 'standard', 'high', 'medium', 'default']:
                 try:
-                    if item["id"] not in image_list:
-                        video['thumbnailUrl'] = item['snippet']['thumbnails'][image]['url']
-                        image_list[item['id']] = 1  # 이것도 dynamodb 로 해결할 수 있을 것 같은데?
-                        urllib.request.urlretrieve(video['thumbnailUrl'], imageFilePath)
+                    video['thumbnailUrl'] = item['snippet']['thumbnails'][image]['url']
                     break
                 except KeyError:
                     continue
@@ -101,15 +92,15 @@ def video_collect():
                 video['topicCategories'] = item['topicDetails']['topicCategories']
             except KeyError:
                 pass
-
-            if dynamodb.check('Youtube', 'Video', item['id']):  # 이미 존재하는 경우
+            print(item['id'], )
+            if dynamodb.check('Youtube', 'Video', item['id']):  # 이미 존재하는 경우는 따지지 않고 update로만 해결 가능
+                # 하지만 S3에 이미지 파일이 존재하는지 확인하는 작업이 필요할 듯 싶다
                 dynamodb.update_item('Youtube', {'Item': 'Video', 'Id': item['id']}, 'data', [video], 'ADD')
             else:
                 data = {'Item': 'Video', 'Id': item['id'], 'data': [video]}
                 dynamodb.put_item('Youtube', data)
-
+                urllib.request.urlretrieve(video['thumbnailUrl'], imageFilePath)
             channel.add(item['snippet']['channelId'])
-            print('video:', video['title'])
 
     channel_id = []
     for index, i in enumerate(channel):
@@ -118,31 +109,26 @@ def video_collect():
             channel_collect(channel_id)
             channel_id = []
 
-    with open(file_path + f'/image_list.json', 'w', encoding='utf-8') as file:
-        json.dump(image_list, file)
-
     return channel
 
 
 def channel_collect(channel_id):  # channel_id는 list 형태도 무관
     now = datetime.datetime.strftime(datetime.datetime.utcnow(), "%Y-%m-%dT%H:%M:%SZ")
     youtube = build('youtube', 'v3', developerKey=get_api_key())
-    response = youtube.channels().list(part='snippet, statistics, topicDetails', id=channel_id, maxResults=50).execute()  # 50이 최대
+    response = youtube.channels().list(part='snippet, statistics, topicDetails', id=channel_id, maxResults=50).execute()
     for item in response['items']:
         channel = {'confirmationAt': now}
         for snip in 'title description customUrl country'.split():  # country 가 오류가 뜨는데?
-            channel[snip] = item['snippet'][snip]
+            try:
+                channel[snip] = item['snippet'][snip]
+            except KeyError:
+                pass
 
         imageFilePath = './channel' + f'/image/{item["id"]}.jpg'
-        with open('./channel' + '/image_list.json', 'r', encoding='utf-8') as file:
-            image_list = json.load(file)
         channel['thumbnailFilePath'] = imageFilePath
         for image in ['high', 'medium', 'default']:
             try:
-                if item["id"] not in image_list:
-                    channel['thumbnailUrl'] = item['snippet']['thumbnails'][image]['url']
-                    image_list[item['id']] = 1  # 이것도 dynamodb 로 해결할 수 있을 것 같은데?
-                    urllib.request.urlretrieve(channel['thumbnailUrl'], imageFilePath)
+                channel['thumbnailUrl'] = item['snippet']['thumbnails'][image]['url']
                 break
             except KeyError:
                 continue
@@ -153,13 +139,12 @@ def channel_collect(channel_id):  # channel_id는 list 형태도 무관
         except KeyError:
             pass
 
-        if dynamodb.check('Youtube', 'Channel', item['id']):  # 이미 존재하는 경우
+        if dynamodb.check('Youtube', 'Channel', item['id']):
             dynamodb.update_item('Youtube', {'Item': 'Channel', 'Id': item['id']}, 'data', [channel], 'ADD')
         else:
             data = {'Item': 'Channel', 'Id': item['id'], 'data': [channel]}
             dynamodb.put_item('Youtube', data)
-        print('channel:', channel['title'])
-    # dynamodb.put_item('Youtube', ???)  여기도 수정 요망
+            urllib.request.urlretrieve(channel['thumbnailUrl'], imageFilePath)
 
 
 def video_comment(video_id):  # 수정 요망
@@ -187,28 +172,12 @@ def video_comment(video_id):  # 수정 요망
                                                      pageToken=response['nextPageToken'], maxResults=100).execute()
         else:
             break
-    # with open('comments' + f'/{video_id}.json', 'w', encoding='utf-8') as file:
-    #     json.dump(comments, file)
-
-
-def local_to_db():  # 이것도 변경해야함
-    filepath = 'most_popular_videos/data/'
-    file_lst = os.listdir(filepath)
-
-    for f in file_lst:
-        with open(filepath + f, 'r', encoding='utf-8') as file:
-            js = json.load(file)
-            for item in js:
-                dynamodb.put_item('PopularVideo', item['popular_video'])
-                dynamodb.put_item('Channel', item['channel'])
-                dynamodb.put_item('Video', item['Video'])
 
 
 def run():
     pre_work()
     sched = BackgroundScheduler()
     sched.add_job(video_collect, 'cron', minute=0)
-    sched.add_job(channel_collect, 'cron', minute=0)
     sched.start()
     try:
         while True:
@@ -220,44 +189,4 @@ def run():
 
 if __name__ == "__main__":
     print('youtube_function.py 실행')
-    youtube = build('youtube', 'v3', developerKey=get_api_key())
-    response = youtube.videos().list(part='id, snippet, statistics, topicDetails', id='KAu18xjSMRw',
-                                     regionCode='kr').execute()  # 50이 최대
-    pprint(response)
-    '''
-    {'etag': '_-KCtnchui7g8P6ij73vZ5jCcOo',
- 'items': [{'etag': 'xxXjqU7pmmzbMpAN4LXS0d4bbRE',
-            'id': 'KAu18xjSMRw',
-            'kind': 'youtube#video',
-            'snippet': {'categoryId': '22',
-                        'channelId': 'UCMoAISkur2XdBt54uAK_Dsg',
-                        'channelTitle': '정태완',
-                        'description': '',
-                        'liveBroadcastContent': 'none',
-                        'localized': {'description': '',
-                                      'title': '임베디드 SW경진대회 기술 동영상'},
-                        'publishedAt': '2021-06-23T04:08:20Z',
-                        'thumbnails': {'default': {'height': 90,
-                                                   'url': 'https://i.ytimg.com/vi/KAu18xjSMRw/default.jpg',
-                                                   'width': 120},
-                                       'high': {'height': 360,
-                                                'url': 'https://i.ytimg.com/vi/KAu18xjSMRw/hqdefault.jpg',
-                                                'width': 480},
-                                       'maxres': {'height': 720,
-                                                  'url': 'https://i.ytimg.com/vi/KAu18xjSMRw/maxresdefault.jpg',
-                                                  'width': 1280},
-                                       'medium': {'height': 180,
-                                                  'url': 'https://i.ytimg.com/vi/KAu18xjSMRw/mqdefault.jpg',
-                                                  'width': 320},
-                                       'standard': {'height': 480,
-                                                    'url': 'https://i.ytimg.com/vi/KAu18xjSMRw/sddefault.jpg',
-                                                    'width': 640}},
-                        'title': '임베디드 SW경진대회 기술 동영상'},
-            'statistics': {'commentCount': '0',
-                           'favoriteCount': '0',
-                           'likeCount': '0',
-                           'viewCount': '59'},
-            'topicDetails': {'topicCategories': ['https://en.wikipedia.org/wiki/Knowledge']}}],
- 'kind': 'youtube#videoListResponse',
- 'pageInfo': {'resultsPerPage': 1, 'totalResults': 1}}
-    '''
+    video_comment('tT-kuonVzfY')
