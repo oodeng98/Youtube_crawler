@@ -1,6 +1,7 @@
 ProvisionedThroughputExceededException 가 발생하는 경우가 있는데, 이건 아직 어떻게 해결해야 하는지 모르겠다.
 ->파티션 키를 잘못 선택했거나, 통일한 키에 대한 빈번한 엑세스, 프로비저닝 된 처리량?
 ->S3시작해보자
+->진행중
 comment를 어느 주기로 저장할 것인가 결정
 저장된 이미지 파일 비교 기능과 변경 된 경우에만 저장하게 만드는 기능 추가
 ProvisionedThroughputExceededException 해결 방법 강구

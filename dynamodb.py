@@ -1,9 +1,7 @@
 import boto3
-from boto3.dynamodb.conditions import Key
-from pprint import pprint
 
 
-def access_dynamodb(type):
+def access(type):
     if type == 'client':
         return boto3.client('dynamodb')
     else:
@@ -11,7 +9,8 @@ def access_dynamodb(type):
 
 
 def create_table():
-    dynamodb = access_dynamodb('client')
+    # KeySchema와 AttributeDefinitions의 AttributeName은 똑같아야 한다.
+    dynamodb = access('client')
     try:
         dynamodb.create_table(
             TableName='Youtube',
@@ -27,54 +26,58 @@ def create_table():
 
 
 def put_item(table_name, info):
-    table = access_dynamodb('resource').Table(table_name)
+    # info에 Hash key와 Range key는 무조건 들어가야 함
+    table = access('resource').Table(table_name)
     table.put_item(Item=info)
 
 
 def get_item(table_name, partition_key, sort_key):
-    table = access_dynamodb('resource').Table(table_name)
+    table = access('resource').Table(table_name)
     ret = table.get_item(Key={'Item': partition_key, 'Id': sort_key})
     return ret
 
 
 def get_table_list():
-    resource = access_dynamodb('resource')
+    dynamodb = access('resource')
     ret = []
-    for table in resource.tables.all():
+    for table in dynamodb.tables.all():
         name = table.name
         ret.append(name)
     return ret
 
 
 def delete_table(table_name):
-    table = access_dynamodb('resource').Table(table_name)
+    table = access('resource').Table(table_name)
     ret = table.delete()
     return ret
 
 
 def scan(table_name):
-    table = access_dynamodb('resource').Table(table_name)
+    # scan은 테이블의 모든 테이터를 가져온다
+    table = access('resource').Table(table_name)
     response = table.scan()
-    # for item in response:
-    #     print(response[item])
     return response
 
 
 def conditional_search(table_name, keyconditionexpression):
+    # query문을 활용한 검색, 이를 더 활용하고 싶다면 GSI, LSI등을 설정하는 것이 좋다.
     # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Client.query 참조
-    table = access_dynamodb('resource').Table(table_name)
+    table = access('resource').Table(table_name)
     ret = table.query(KeyConditionExpression=keyconditionexpression)
     return ret
 
 
 def update_item(table_name, key, var, value, action):
-    table = access_dynamodb('resource').Table(table_name)
+    # 기존에 존재하지 않는 item을 update하는 경우, put_item과 다를게 없다.
+    # action의 종류는 공식 문서를 참고하자
+    table = access('resource').Table(table_name)
     ret = table.update_item(Key=key, ReturnValues='ALL_NEW',
                             AttributeUpdates={var: {'Value': value, 'Action': action}})
     return ret
 
 
 def check(table_name, partition_key, check_id):
+    # 주어진 partition_key(Hash key)와 check_id(Range key)를 가진 아이템이 이미 존재하는지 확인하는 함수
     item = get_item(table_name, partition_key, check_id)
     if 'Item' in item:
         return 1
@@ -83,5 +86,3 @@ def check(table_name, partition_key, check_id):
 
 if __name__ == '__main__':
     print('dynamodb.py 실행')
-    update_item('Youtube', {'Item': 'Test', 'Id': '정태완1'}, 'data', ['정태완이다이자식아'], 'ADD')
-

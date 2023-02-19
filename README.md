@@ -11,8 +11,7 @@
 #### Id: str, sort key
 
 * Common index
-  * publishedAt: str
-  * 
+  * publishedAt: str, 등록된 시간
 * Video(Partition Key Value)
   * title: str, 비디오 제목
   * description: str, 비디오 설명
@@ -37,6 +36,7 @@
   * subscriberCount: int, 채널의 구독자 수
   * videoCount: int, 채널의 총 비디오 수
   * topicCategories: str, 채널이 다루는 동영상의 카테고리들
+  * confirmationAt
 * Comment(Partition Key Value)
   * authorChannelId: str, 댓글 작성자 채널의 Id 
   * author: 댓글 작성자의 이름
@@ -58,6 +58,7 @@
 * 유튜브 API로 가져오는 대부분의 시간 데이터는 UTC 시간대를 기준으로 한다.
 
 ##### AWS EC2(Ubuntu)
+* 월별 750시간까지 무료
 * 윈도우에서 ssh -i [key 파일 위치] ubuntu@[퍼블릭 IPv4 DNS]를 넣으면 프로그램 설치 없이 쉽게 EC2에 접속이 가능하다. 개인적으로 putty보다 이 방법을 권장한다.
 * 이때 퍼블릭 IPv4 DNS를 고정하려면 탄력적 IP(Elastic IP)를 설정하면 된다.
 * 인스턴스에 연결되어 있지 않은 탄력적 IP는 돈이 나가므로 조심하자. 물론 굉장히 소액이긴 하다.
@@ -79,7 +80,7 @@
 * 권한 정책은 AmazonDynamoDBFullAccess 등 여러개가 있는데 DynamoDB검색해서 자신에게 어울리는 정책 설정하고 단 한번 주어지는 키 값을 저장해서 활용하면 된다. 키는 다시는 주어지지 않는다.  
 * AWS CLI를 설치하고 aws configure 입력, 그 후 해당하는 값들을 설정하면 비로소 boto3.resource를 사용할 수 있다. 
 * 함수로 DynamoDB에 접근하기 전에 데이터 구조를 완벽히 짜고 접근하는 것이 좋은 것 같다.
-* 필자는 이번 프로젝트에서 일주일 넘게 데이터 구조를 갈아치우는 경험을 함
+* 필자는 이번 프로젝트에서 일주일 넘게 데이터 구조를 갈아치우는 경험을 했다.
 * Partition Key를 설계할 때 고려해야하는 부분
 * query가 scan보다 비용 및 효율이 좋다, 하지만 Key-Value Nosql인 DynamoDB의 특성상 query를 하기가 어렵다.
 * 그래서 글로벌 보조 인덱스(GSI)를 활용하는 듯 싶다. 로컬 보조 인덱스(LSI)와 기능 면에서 어떤 차이가 있는지는 모르겠다.
@@ -87,7 +88,14 @@
 * GSI는 테이블 내에 간단한 다른 테이블을 만들어준다고 생각하면 편한 듯 싶다.
 * 유튜브 비디오 ID로 DynamoDB PK를 설정, 조회수로 SK를 설정했다면 좋아요 수를 기준으로 정렬하기 위해서는 scan과정이 필요하다.
 * 그렇다면 GSI로 비디오 ID를 설정하고, 새로운 SK로 좋아요 수를 지정한다면 query로 쉽게 정렬할 수 있다.
+* ProvisionedThroughputExceededException가 간헐적으로 발생, 보통 하나의 partition key에 너무 자주 접근해서 생기는 오류라고 하는데, 이를 해결할 방법을 아직 못찾음
 
-#### 번외  
-* dynamodb에서 ProvisionedThroughputExceededException가 발생하는 경우가 있었는데, 이를 해결하기 위해서 코드를 간소화하려 했더니 이미지 파일을 저장할 S3의 필요성을 느끼게 되었다. 하나의 기술로 해결할 수 없는 경우라고 생각하진 않지만, 다른 기술이 있으면 더 편하게 해결할 수 있는 경우는 맞는 것 같다. 프로그래밍을 하면서 이런 경우를 꽤나 마주하곤 하는데, 이번에는 S3를 사용해보는 방향으로 가닥을 잡았다.
+##### AWS S3
+* 프리티어로 5GB의 스토리지를 사용할 수 있고 20000건의 GET 요청, 2000건의 PUT 요청이 무료다.
+* S3 Standard 기준으로 50TB까지 GB당 0.025USD(32.5원)가 월마다 청구된다.
+* PUT, COPY, POST, LIST 요청 1,000개당 0.0045USD(5.2원), GET, SELECT 및 기타 모든 요청 1,000개당 0.00035USD(0.455원)이 청구된다.
+* DynamoDB와 마찬가지로 S3에 접근하고 싶다면 IAM에서 사용자를 추가하여 키를 받거나 기존에 사용하고 있는 사용자에 권한을 추가해야 한다.
+* S3의 bucket 이름은 유니크해야한다.
+
+#### 번외
 * https://wikidocs.net/book/5445  이거도 재미있어보임
