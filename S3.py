@@ -29,13 +29,12 @@ def get_bucket_list():
         print(f'{bucket["Name"]}')
 
 
-def upload_file(file_name, bucket, key):
+def upload_file(file_name, bucket_name, key):
     # key는 파일이 S3에서 저장될 위치를 의미한다.
     # S3에서 존재하지 않는 폴더를 지정하면 폴더가 생성된다.
     s3 = access()
     try:
-        response = s3.upload_file(file_name, bucket, key)
-        pprint(response)
+        response = s3.upload_file(file_name, bucket_name, key)
         # with open("FILE_NAME", "rb") as f:
         #     s3.upload_fileobj(f, "BUCKET_NAME", "OBJECT_NAME")
         # 이렇게도 가능하다
@@ -45,6 +44,17 @@ def upload_file(file_name, bucket, key):
     return True
 
 
+def download_file(bucket_name, object_name, file_name):
+    # object_name은 다운로드 받을 파일의 이름을 의미한다
+    s3 = access()
+    try:
+        response = s3.download_file(bucket_name, object_name, file_name)
+    except ClientError as e:
+        logging.error(e)
+        return False
+    return True
+
+
 if __name__ == '__main__':
     print('S3 실행')
-    upload_file('most_popular_videos/image/0BbFh3LWOpM.jpg', 'parenhark', 'Youtubee_image/0BbFh3LWOpM.jpg')
+    # upload_file('most_popular_videos/image/0BbFh3LWOpM.jpg', 'parenhark', 'Youtubee_image/0BbFh3LWOpM.jpg')

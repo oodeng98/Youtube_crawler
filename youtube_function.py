@@ -11,6 +11,7 @@ import urllib.request
 from apscheduler.schedulers.background import BackgroundScheduler
 import dynamodb
 from pprint import pprint
+import sys
 
 
 def get_api_key():
@@ -44,18 +45,28 @@ def pre_work():
     if 'video_category.json' not in os.listdir():
         video_category_list()
         time.sleep(2)
-    for folder in ['most_popular_videos', 'channel']:
-        if folder not in os.listdir():
-            os.mkdir(folder)
-            os.mkdir(folder + '/image')
+    if 'image' not in os.listdir():
+        os.mkdir('image')
 
+    if 'image_list.json' not in os.listdir():
+        with open('./image_list.json', 'w', encoding='utf-8') as file:
+            json.dump({}, file)
+
+
+def image_download(id, image_list, imagefileurl, imagefilepath):
+    if id not in image_list:
+        img = requests.get(imagefileurl)
+        image_list[id] = sys.getsizeof(res.content)
+        with open(imagefilepath, 'wb') as image:
+            image.write(img.content)  # 여기 수정중
 
 def video_collect():
     now = datetime.datetime.strftime(datetime.datetime.utcnow(), "%Y-%m-%dT%H:%M:%SZ")
     youtube = build('youtube', 'v3', developerKey=get_api_key())
     with open('./video_category.json', 'r') as file:
         category_dic = json.load(file)
-    file_path = './most_popular_videos'
+    with open('./image_list.json', 'r') as file:
+        image_list = json.load(file)
 
     channel = set()
     for categoryId in tqdm(category_dic):
@@ -80,7 +91,7 @@ def video_collect():
                     video[snip] = item['snippet'][snip]
                 except KeyError:
                     continue
-            imageFilePath = file_path + f'/image/{item["id"]}.jpg'
+            imageFilePath = f'./image/{item["id"]}.jpg'
             video['thumbnailFilePath'] = imageFilePath
             for image in ['maxres', 'standard', 'high', 'medium', 'default']:
                 try:
@@ -92,14 +103,13 @@ def video_collect():
                 video['topicCategories'] = item['topicDetails']['topicCategories']
             except KeyError:
                 pass
-            print(item['id'], )
-            if dynamodb.check('Youtube', 'Video', item['id']):  # 이미 존재하는 경우는 따지지 않고 update로만 해결 가능
-                # 하지만 S3에 이미지 파일이 존재하는지 확인하는 작업이 필요할 듯 싶다
-                dynamodb.update_item('Youtube', {'Item': 'Video', 'Id': item['id']}, 'data', [video], 'ADD')
-            else:
-                data = {'Item': 'Video', 'Id': item['id'], 'data': [video]}
-                dynamodb.put_item('Youtube', data)
-                urllib.request.urlretrieve(video['thumbnailUrl'], imageFilePath)
+
+            dynamodb.update_item('Youtube', {'Item': 'Video', 'Id': item['id']}, 'data', [video], 'ADD')
+            if item['id'] not in image_list:
+                img = requests.get(video['thumbnailUrl'])
+                image_list[item['id']] = sys.getsizeof(res.content)
+                with open(imageFilePath, 'wb') as image:
+                    image.write(img.content)
             channel.add(item['snippet']['channelId'])
 
     channel_id = []
@@ -124,7 +134,7 @@ def channel_collect(channel_id):  # channel_id는 list 형태도 무관
             except KeyError:
                 pass
 
-        imageFilePath = './channel' + f'/image/{item["id"]}.jpg'
+        imageFilePath = f'/image/{item["id"]}.jpg'
         channel['thumbnailFilePath'] = imageFilePath
         for image in ['high', 'medium', 'default']:
             try:
@@ -189,4 +199,14 @@ def run():
 
 if __name__ == "__main__":
     print('youtube_function.py 실행')
-    video_comment('tT-kuonVzfY')
+    # youtube = build('youtube', 'v3', developerKey=get_api_key())
+    # response = youtube.videos().list(part='snippet, statistics, topicDetails', id='76sZqsMp37Q', regionCode='kr').execute()
+    # pprint(response)
+    url = 'https://i.ytimg.com/vi/76sZqsMp37Q/sddefault.jpg'
+    res = requests.get(url)
+    with open('test2.jpg', 'wb') as file:
+        file.write(res.content)
+
+    urllib.request.urlretrieve(url, 'test1.jpg')
+    print(sys.getsizeof(res.content), os.path.getsize('test1.jpg'), os.path.getsize('test2.jpg'))
+
