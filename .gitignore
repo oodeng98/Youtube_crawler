@@ -174,8 +174,7 @@ poetry.toml
 client_secret.json
 *.xlsx
 config.ini
-most_popular_videos
 video_category.json
-comments
 JeongTaeWan_accessKeys.csv
-channel
+image_list.json
+image

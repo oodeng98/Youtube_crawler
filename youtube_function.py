@@ -9,6 +9,8 @@ from tqdm import tqdm
 import googleapiclient.errors
 import urllib.request
 from apscheduler.schedulers.background import BackgroundScheduler
+
+import S3
 import dynamodb
 from pprint import pprint
 import sys
@@ -56,9 +58,10 @@ def pre_work():
 def image_download(id, image_list, imagefileurl, imagefilepath):
     if id not in image_list:
         img = requests.get(imagefileurl)
-        image_list[id] = sys.getsizeof(res.content)
+        image_list[id] = sys.getsizeof(img.content)
         with open(imagefilepath, 'wb') as image:
-            image.write(img.content)  # 여기 수정중
+            image.write(img.content)
+
 
 def video_collect():
     now = datetime.datetime.strftime(datetime.datetime.utcnow(), "%Y-%m-%dT%H:%M:%SZ")
@@ -74,10 +77,13 @@ def video_collect():
             response = youtube.videos().list(part='id, snippet, statistics, topicDetails', chart='mostPopular',
                                              regionCode='kr',
                                              videoCategoryId=categoryId, maxResults=50).execute()
-        except googleapiclient.errors.HttpError:
+        except googleapiclient.errors.HttpError as e:
+            print(e)
             continue
 
         for rank, item in enumerate(response['items']):
+            if rank == 10:
+                return
             video = {'confirmationAt': now, 'rank': rank + 1}
             for statistic in ['viewCount', 'likeCount', 'commentCount']:
                 try:
@@ -91,6 +97,7 @@ def video_collect():
                     video[snip] = item['snippet'][snip]
                 except KeyError:
                     continue
+            print(video['title'])
             imageFilePath = f'./image/{item["id"]}.jpg'
             video['thumbnailFilePath'] = imageFilePath
             for image in ['maxres', 'standard', 'high', 'medium', 'default']:
@@ -105,11 +112,8 @@ def video_collect():
                 pass
 
             dynamodb.update_item('Youtube', {'Item': 'Video', 'Id': item['id']}, 'data', [video], 'ADD')
-            if item['id'] not in image_list:
-                img = requests.get(video['thumbnailUrl'])
-                image_list[item['id']] = sys.getsizeof(res.content)
-                with open(imageFilePath, 'wb') as image:
-                    image.write(img.content)
+            image_download(item['id'], image_list, video['thumbnailUrl'], imageFilePath)
+            # S3.upload_file(imageFilePath, 'parenhark', f'Youtube_image/{item["id"]}.jpg')
             channel.add(item['snippet']['channelId'])
 
     channel_id = []
@@ -124,17 +128,20 @@ def video_collect():
 
 def channel_collect(channel_id):  # channel_id는 list 형태도 무관
     now = datetime.datetime.strftime(datetime.datetime.utcnow(), "%Y-%m-%dT%H:%M:%SZ")
+    with open('./image_list.json', 'r') as file:
+        image_list = json.load(file)
     youtube = build('youtube', 'v3', developerKey=get_api_key())
     response = youtube.channels().list(part='snippet, statistics, topicDetails', id=channel_id, maxResults=50).execute()
     for item in response['items']:
         channel = {'confirmationAt': now}
-        for snip in 'title description customUrl country'.split():  # country 가 오류가 뜨는데?
+        for snip in 'title description customUrl country'.split():
             try:
                 channel[snip] = item['snippet'][snip]
             except KeyError:
                 pass
+        print(channel['title'])
 
-        imageFilePath = f'/image/{item["id"]}.jpg'
+        imageFilePath = f'./image/{item["id"]}.jpg'
         channel['thumbnailFilePath'] = imageFilePath
         for image in ['high', 'medium', 'default']:
             try:
@@ -148,13 +155,9 @@ def channel_collect(channel_id):  # channel_id는 list 형태도 무관
             channel['topicCategories'] = item['topicDetails']['topicCategories']
         except KeyError:
             pass
-
-        if dynamodb.check('Youtube', 'Channel', item['id']):
-            dynamodb.update_item('Youtube', {'Item': 'Channel', 'Id': item['id']}, 'data', [channel], 'ADD')
-        else:
-            data = {'Item': 'Channel', 'Id': item['id'], 'data': [channel]}
-            dynamodb.put_item('Youtube', data)
-            urllib.request.urlretrieve(channel['thumbnailUrl'], imageFilePath)
+        dynamodb.update_item('Youtube', {'Item': 'Channel', 'Id': item['id']}, 'data', [channel], 'ADD')
+        image_download(item['id'], image_list, channel['thumbnailUrl'], imageFilePath)
+        # S3.upload_file(imageFilePath, 'parenhark', f'Youtube_image/{item["id"]}.jpg')
 
 
 def video_comment(video_id):  # 수정 요망
@@ -186,8 +189,12 @@ def video_comment(video_id):  # 수정 요망
 
 def run():
     pre_work()
-    sched = BackgroundScheduler()
+    sched = BackgroundScheduler(timezone='Asia/Seoul')
     sched.add_job(video_collect, 'cron', minute=0)
+    sched.add_job(video_collect, 'cron', minute=10)
+    sched.add_job(video_collect, 'cron', minute=20)
+    sched.add_job(video_collect, 'cron', minute=30)
+    sched.add_job(video_collect, 'cron', minute=40)
     sched.start()
     try:
         while True:
@@ -199,14 +206,4 @@ def run():
 
 if __name__ == "__main__":
     print('youtube_function.py 실행')
-    # youtube = build('youtube', 'v3', developerKey=get_api_key())
-    # response = youtube.videos().list(part='snippet, statistics, topicDetails', id='76sZqsMp37Q', regionCode='kr').execute()
-    # pprint(response)
-    url = 'https://i.ytimg.com/vi/76sZqsMp37Q/sddefault.jpg'
-    res = requests.get(url)
-    with open('test2.jpg', 'wb') as file:
-        file.write(res.content)
-
-    urllib.request.urlretrieve(url, 'test1.jpg')
-    print(sys.getsizeof(res.content), os.path.getsize('test1.jpg'), os.path.getsize('test2.jpg'))
-
+    run()
