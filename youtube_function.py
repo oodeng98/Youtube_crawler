@@ -82,8 +82,6 @@ def video_collect():
             continue
 
         for rank, item in enumerate(response['items']):
-            if rank == 10:
-                return
             video = {'confirmationAt': now, 'rank': rank + 1}
             for statistic in ['viewCount', 'likeCount', 'commentCount']:
                 try:
@@ -97,7 +95,7 @@ def video_collect():
                     video[snip] = item['snippet'][snip]
                 except KeyError:
                     continue
-            print(video['title'])
+
             imageFilePath = f'./image/{item["id"]}.jpg'
             video['thumbnailFilePath'] = imageFilePath
             for image in ['maxres', 'standard', 'high', 'medium', 'default']:
@@ -113,7 +111,7 @@ def video_collect():
 
             dynamodb.update_item('Youtube', {'Item': 'Video', 'Id': item['id']}, 'data', [video], 'ADD')
             image_download(item['id'], image_list, video['thumbnailUrl'], imageFilePath)
-            # S3.upload_file(imageFilePath, 'parenhark', f'Youtube_image/{item["id"]}.jpg')
+            S3.upload_file(imageFilePath, 'parenhark', f'Youtube_image/{item["id"]}.jpg')
             channel.add(item['snippet']['channelId'])
 
     channel_id = []
@@ -122,6 +120,11 @@ def video_collect():
         if index % 50 == 49:
             channel_collect(channel_id)
             channel_id = []
+    if channel_id:
+        channel_collect(channel_id)
+
+    with open('./image_list.json', 'w', encoding='utf-8') as file:
+        json.dump(image_list, file)
 
     return channel
 
@@ -139,7 +142,6 @@ def channel_collect(channel_id):  # channel_id는 list 형태도 무관
                 channel[snip] = item['snippet'][snip]
             except KeyError:
                 pass
-        print(channel['title'])
 
         imageFilePath = f'./image/{item["id"]}.jpg'
         channel['thumbnailFilePath'] = imageFilePath
@@ -149,7 +151,7 @@ def channel_collect(channel_id):  # channel_id는 list 형태도 무관
                 break
             except KeyError:
                 continue
-        for stat in 'viewCount subscriberCount videoCount':
+        for stat in 'viewCount subscriberCount videoCount'.split():
             channel[stat] = item['statistics'][stat]
         try:
             channel['topicCategories'] = item['topicDetails']['topicCategories']
@@ -157,7 +159,7 @@ def channel_collect(channel_id):  # channel_id는 list 형태도 무관
             pass
         dynamodb.update_item('Youtube', {'Item': 'Channel', 'Id': item['id']}, 'data', [channel], 'ADD')
         image_download(item['id'], image_list, channel['thumbnailUrl'], imageFilePath)
-        # S3.upload_file(imageFilePath, 'parenhark', f'Youtube_image/{item["id"]}.jpg')
+        S3.upload_file(imageFilePath, 'parenhark', f'Youtube_image/{item["id"]}.jpg')
 
 
 def video_comment(video_id):  # 수정 요망
@@ -191,19 +193,15 @@ def run():
     pre_work()
     sched = BackgroundScheduler(timezone='Asia/Seoul')
     sched.add_job(video_collect, 'cron', minute=0)
-    sched.add_job(video_collect, 'cron', minute=10)
-    sched.add_job(video_collect, 'cron', minute=20)
-    sched.add_job(video_collect, 'cron', minute=30)
-    sched.add_job(video_collect, 'cron', minute=40)
     sched.start()
     try:
         while True:
-            time.sleep(6000)
+            time.sleep(3600)
             print('파일 아직 실행중')
     except (KeyboardInterrupt, SystemExit):
         sched.shutdown()
 
 
 if __name__ == "__main__":
-    print('youtube_function.py 실행')
-    run()
+    # run()
+    video_category_list()

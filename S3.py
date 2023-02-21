@@ -1,6 +1,5 @@
 import boto3
 import logging
-from pprint import pprint
 from botocore.exceptions import ClientError
 
 
@@ -24,9 +23,10 @@ def create_bucket(bucket_name):
 def get_bucket_list():
     s3 = access()
     response = s3.list_buckets()
-
+    ret = []
     for bucket in response['Buckets']:
-        print(f'{bucket["Name"]}')
+        ret.append(bucket["Name"])
+    return ret
 
 
 def upload_file(file_name, bucket_name, key):

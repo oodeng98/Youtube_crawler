@@ -1,4 +1,7 @@
 import boto3
+import time
+from botocore.exceptions import ClientError
+from pprint import pprint
 
 
 def access(type):
@@ -71,8 +74,13 @@ def update_item(table_name, key, var, value, action):
     # 기존에 존재하지 않는 item을 update하는 경우, put_item과 다를게 없다.
     # action의 종류는 공식 문서를 참고하자
     table = access('resource').Table(table_name)
-    ret = table.update_item(Key=key, ReturnValues='ALL_NEW',
-                            AttributeUpdates={var: {'Value': value, 'Action': action}})
+    try:
+        ret = table.update_item(Key=key, AttributeUpdates={var: {'Value': value, 'Action': action}})
+    except ClientError as e:
+        pprint(e)
+        time.sleep(30)
+        ret = table.update_item(Key=key, AttributeUpdates={var: {'Value': value, 'Action': action}})
+    time.sleep(1)
     return ret
 
 
@@ -86,3 +94,5 @@ def check(table_name, partition_key, check_id):
 
 if __name__ == '__main__':
     print('dynamodb.py 실행')
+    # BatchWriteItem 으로 단일 호출에서 여러 PutItem 또는 DeleteItem 작업을 수행할 수 있다
+    # 조건 표현식을 활용하여 PutItem, UpdateItem, DeleteItem 을 실행할 수 있다

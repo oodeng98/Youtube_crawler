@@ -3,8 +3,6 @@ ProvisionedThroughputExceededException 가 발생하는 경우가 있는데, 이
 ->S3시작해보자
 ->진행중
 S3에 image_list를 업로드해놓고 프로그램을 돌릴때마다 가져와서 확인하면 될듯? 그러면 하루에 24번, 한달에 720번 get과 put 실행함
-이미지 파일을 로컬에 다운받은 후 업로드하는 형식이 아니라 그냥 바로 저장하는 형식은 불가능한가?
 comment를 어느 주기로 저장할 것인가 결정
 저장된 이미지 파일 비교 기능과 변경 된 경우에만 저장하게 만드는 기능 추가
 ProvisionedThroughputExceededException 해결 방법 강구
-S3에 이미지 파일 저장해야함
